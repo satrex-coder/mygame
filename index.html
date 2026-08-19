@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STRIKE ZONE — Free-for-All</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a0c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        #gameContainer {
+            position: relative;
+            border: 2px solid #2a2a30;
+            border-radius: 8px;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+        }
+        canvas {
+            display: block;
+            background: #3a3c44;
+            cursor: crosshair;
+        }
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #ui > * {
+            pointer-events: auto;
+        }
+        
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #hud > * {
+            pointer-events: none;
+        }
+        
+        #hpBar {
+            position: absolute;
+            bottom: 60px;
+            left: 24px;
+            width: 220px;
+            height: 22px;
+            background: rgba(32,34,40,0.9);
+            border-radius: 6px;
+            border: 2px solid #2a2c34;
+            overflow: hidden;
+        }
+        #hpFill {
+            height: 100%;
+            width: 100%;
+            background: #56d878;
+            border-radius: 4px;
+            transition: width 0.2s;
+        }
+        #hpText {
+            position: absolute;
+            bottom: 60px;
+            left: 30px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        
+        #weaponPanel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            height: 60px;
+            background: rgba(32,34,40,0.9);
+            border-radius: 8px;
+            border: 1px solid #3a3c48;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #weaponName {
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        #weaponSkin {
+            color: #8a8a92;
+            font-size: 12px;
+        }
+        #weaponAmmo {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #f0d050;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #reloadText {
+            position: absolute;
+            left: 12px;
+            bottom: 6px;
+            color: #f09040;
+            font-size: 12px;
+        }
+        
+        #money {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #e8c840;
+            font-size: 22px;
+            font-weight: bold;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        #roundInfo {
+            position: absolute;
+            top: 46px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #c0c0c8;
+            font-size: 15px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        #aliveCount {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #60b0e0;
+            font-size: 14px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        #buyPhase {
+            position: absolute;
+            top: 92px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #5090d0;
+            font-size: 13px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        #kd {
+            position: absolute;
+            top: 16px;
+            left: 24px;
+            color: #888;
+            font-size: 14px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        
+        #killFeed {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            text-align: right;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        .kill-entry {
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        #message {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.6);
+            padding: 8px 24px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+        #message.show {
+            opacity: 1;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-size: 11px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+            pointer-events: none;
+        }
+        
+        /* Weapon slots */
+        #weaponSlots {
+            position: absolute;
+            bottom: 90px;
+            left: 24px;
+            display: flex;
+            gap: 4px;
+            pointer-events: none;
+        }
+        .slot {
+            width: 60px;
+            height: 40px;
+            background: rgba(32,34,40,0.8);
+            border-radius: 6px;
+            border: 1px solid #3a3c48;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.15s;
+            pointer-events: none;
+        }
+        .slot.active {
+            border-color: #e8c840;
+            background: rgba(46,49,58,0.9);
+            color: white;
+        }
+        .slot.owned {
+            color: #ccc;
+        }
+        .slot .key {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-right: 3px;
+        }
+        
+        /* MENU */
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(12,12,14,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        #menu.hidden {
+            display: none;
+        }
+        #menu h1 {
+            color: white;
+            font-size: 64px;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-shadow: 0 0 40px rgba(100,150,255,0.2);
+            margin-bottom: 8px;
+        }
+        #menu .subtitle {
+            color: #e8c840;
+            font-size: 20px;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+        .menu-btn {
+            width: 280px;
+            padding: 14px 0;
+            margin: 6px 0;
+            background: rgba(32,34,40,0.8);
+            border: 2px solid #3a3c48;
+            border-radius: 10px;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            pointer-events: auto;
+        }
+        .menu-btn:hover {
+            background: rgba(46,49,58,0.9);
+            border-color: #e8c840;
+            transform: scale(1.02);
+        }
+        .menu-btn:active {
+            transform: scale(0.98);
+        }
+        #menuMoney {
+            color: #e8c840;
+            font-size: 16px;
+            margin-top: 16px;
+        }
+        
+        /* SHOP */
+        #shop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(12,12,14,0.95);
+            display: none;
+            flex-direction: column;
+            pointer-events: auto;
+            z-index: 90;
+            padding: 20px 30px;
+            overflow-y: auto;
+        }
+        #shop.active {
+            display: flex;
+        }
+        #shopHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #2a2c34;
+            flex-shrink: 0;
+        }
+        #shopHeader h2 {
+            font-size: 28px;
+        }
+        #shopHeader .money {
+            color: #e8c840;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        #shopTabs {
+            display: flex;
+            gap: 8px;
+            margin: 16px 0;
+            flex-shrink: 0;
+        }
+        .shop-tab {
+            padding: 8px 24px;
+            background: rgba(32,34,40,0.6);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: #888;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .shop-tab:hover {
+            background: rgba(46,49,58,0.8);
+        }
+        .shop-tab.active {
+            border-color: #e8c840;
+            color: white;
+            background: rgba(46,49,58,0.5);
+        }
+        #shopContent {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        #shopContent::-webkit-scrollbar {
+            width: 6px;
+        }
+        #shopContent::-webkit-scrollbar-track {
+            background: #1a1c22;
+            border-radius: 3px;
+        }
+        #shopContent::-webkit-scrollbar-thumb {
+            background: #3a3c48;
+            border-radius: 3px;
+        }
+        .shop-weapon-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 12px;
+            background: rgba(32,34,40,0.4);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        .shop-weapon-row .name {
+            color: white;
+            font-size: 15px;
+            flex: 1;
+        }
+        .shop-weapon-row .price {
+            color: #e8c840;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .shop-weapon-row .status {
+            color: #56d878;
+            font-size: 14px;
+        }
+        .shop-weapon-row .buy-btn {
+            padding: 4px 16px;
+            background: #2a4a3a;
+            border: 1px solid #3a6a4a;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .shop-weapon-row .buy-btn:hover {
+            background: #3a6a4a;
+        }
+        .shop-weapon-row .buy-btn.owned {
+            background: #2a3a4a;
+            border-color: #3a4a5a;
+            cursor: default;
+        }
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .shop-skin-card {
+            background: rgba(32,34,40,0.6);
+            border-radius: 10px;
+            padding: 12px;
+            border: 2px solid #2a2c34;
+            transition: all 0.2s;
+        }
+        .shop-skin-card.equipped {
+            border-color: #e8c840;
+        }
+        .shop-skin-card .preview {
+            height: 50px;
+            background: #1a1c22;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .shop-skin-card .preview .bar {
+            height: 16px;
+            border-radius: 4px;
+            width: 80%;
+        }
+        .shop-skin-card .name {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .shop-skin-card .rarity {
+            font-size: 12px;
+            margin: 2px 0 6px;
+        }
+        .shop-skin-card .skin-btn {
+            width: 100%;
+            padding: 6px;
+            background: #2a3a4a;
+            border: 1px solid #3a4a5a;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .shop-skin-card .skin-btn:hover {
+            background: #3a5a6a;
+        }
+        .shop-skin-card .skin-btn.equipped {
+            background: #2a4a3a;
+            border-color: #3a6a4a;
+        }
+        .shop-skin-card .skin-btn.owned {
+            background: #3a3a4a;
+        }
+        #shopBack {
+            margin-top: 16px;
+            padding: 10px 32px;
+            background: rgba(32,34,40,0.6);
+            border: 2px solid #3a3c48;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+            align-self: center;
+            flex-shrink: 0;
+        }
+        #shopBack:hover {
+            background: rgba(46,49,58,0.8);
+            border-color: #e8c840;
+        }
+        #shopMessage {
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+        
+        /* PAUSE */
+        #pause {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 80;
+        }
+        #pause.active {
+            display: flex;
+        }
+        #pause h2 {
+            color: white;
+            font-size: 40px;
+            margin-bottom: 30px;
+        }
+        .pause-btn {
+            width: 260px;
+            padding: 12px 0;
+            margin: 4px 0;
+            background: rgba(32,34,40,0.8);
+            border: 2px solid #3a3c48;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            pointer-events: auto;
+        }
+        .pause-btn:hover {
+            background: rgba(46,49,58,0.9);
+            border-color: #e8c840;
+        }
+        
+        /* Round End */
+        #roundEnd {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 70;
+        }
+        #roundEnd.active {
+            display: flex;
+        }
+        #roundEnd .title {
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+        }
+        #roundEnd .sub {
+            color: #888;
+            font-size: 18px;
+            margin-top: 12px;
+        }
+        
+        /* Spectate indicator */
+        #spectateInfo {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #e8c840;
+            font-size: 16px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+            display: none;
+            pointer-events: none;
+        }
+        #spectateInfo.active {
+            display: block;
+        }
+        
+        @media (max-width: 800px) {
+            #weaponPanel { width: 200px; font-size: 12px; }
+            #weaponName { font-size: 12px; }
+            #weaponAmmo { font-size: 14px; }
+            #hpBar { width: 140px; height: 16px; }
+            #hpText { font-size: 11px; }
+            .slot { width: 44px; height: 32px; font-size: 9px; }
+            #menu h1 { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    
+    <div id="hud">
+        <div id="hpBar"><div id="hpFill"></div></div>
+        <div id="hpText">HP 100</div>
+        
+        <div id="weaponPanel">
+            <div id="weaponName">Пистолет «Гадюка»</div>
+            <div id="weaponSkin">Скин: Штатная окраска</div>
+            <div id="weaponAmmo">12 / 48</div>
+            <div id="reloadText"></div>
+        </div>
+        
+        <div id="money">$ 800</div>
+        <div id="roundInfo">Раунд 1  1:30</div>
+        <div id="aliveCount">Живых: 6</div>
+        <div id="buyPhase"></div>
+        <div id="kd">Убийства: 0  Смерти: 0</div>
+        
+        <div id="killFeed"></div>
+        <div id="message"></div>
+        <div id="spectateInfo">Наблюдение (SPACE - смена цели)</div>
+        <div id="controls">WASD — движение | Мышь — прицел | ЛКМ — стрельба | R — перезарядка | 1-7 — оружие | B — магазин | ESC — пауза</div>
+        
+        <div id="weaponSlots"></div>
+    </div>
+    
+    <!-- MENU -->
+    <div id="menu">
+        <h1>STRIKE ZONE</h1>
+        <div class="subtitle">Free-for-All · скины · экономика</div>
+        <div class="menu-btn" onclick="game.startGame()">Играть</div>
+        <div class="menu-btn" onclick="game.openShop()">Магазин скинов</div>
+        <div class="menu-btn" onclick="game.quit()">Выход</div>
+        <div id="menuMoney">Баланс: $800</div>
+    </div>
+    
+    <!-- SHOP -->
+    <div id="shop">
+        <div id="shopHeader">
+            <h2>МАГАЗИН</h2>
+            <span class="money">$ <span id="shopMoney">800</span></span>
+        </div>
+        <div id="shopTabs">
+            <div class="shop-tab active" data-tab="rifle" onclick="game.switchShopTab('rifle')">Винтовки</div>
+            <div class="shop-tab" data-tab="pistol" onclick="game.switchShopTab('pistol')">Пистолеты</div>
+            <div class="shop-tab" data-tab="knife" onclick="game.switchShopTab('knife')">Ножи</div>
+        </div>
+        <div id="shopContent"></div>
+        <div id="shopMessage"></div>
+        <button id="shopBack" onclick="game.closeShop()">Назад (ESC)</button>
+    </div>
+    
+    <!-- PAUSE -->
+    <div id="pause">
+        <h2>ПАУЗА</h2>
+        <div class="pause-btn" onclick="game.resume()">Продолжить</div>
+        <div class="pause-btn" onclick="game.openShop()">Магазин</div>
+        <div class="pause-btn" onclick="game.goToMenu()">Выйти в меню</div>
+    </div>
+    
+    <!-- ROUND END -->
+    <div id="roundEnd">
+        <div class="title" id="roundEndTitle">Раунд выигран! +$3250</div>
+        <div class="sub">Следующий раунд начнётся автоматически...</div>
+    </div>
+</div>
+
+<script>
+// ========================================================================
+// STRIKE ZONE — полная веб-версия
+// ========================================================================
+
+// ------------------------------------------------------------------------
+// КОНСТАНТЫ
+// ------------------------------------------------------------------------
+const W = 1280, H = 720;
+const ARENA_W = 2200, ARENA_H = 1500;
+const PLAYER_RADIUS = 16;
+
+const COLORS = {
+    WHITE: '#f0f0f0',
+    BLACK: '#0c0c0e',
+    DARK: '#181a1e',
+    PANEL: '#202228',
+    PANEL_LIGHT: '#2e313a',
+    RED: '#dc3c3c',
+    GREEN: '#5ad278',
+    YELLOW: '#f0c83c',
+    BLUE: '#5a96e6',
+    ORANGE: '#f0963c',
+    GRAY: '#8c8c94',
+    GOLD: '#e6be5a',
+};
+
+const RARITY_COLORS = {
+    base: '#aaaab0',
+    consumer: '#b0c3d9',
+    industrial: '#5e98d9',
+    milspec: '#4b69ff',
+    restricted: '#8847ff',
+    classified: '#d32ce6',
+    covert: '#eb4b4b',
+    knife: '#ffcd55',
+};
+
+const RARITY_LABELS = {
+    base: 'Стандарт',
+    consumer: 'Ширпотреб',
+    industrial: 'Промышленное',
+    milspec: 'Армейское',
+    restricted: 'Запрещённое',
+    classified: 'Засекреченное',
+    covert: 'Тайное',
+    knife: 'Редкое',
+};
+
+// ------------------------------------------------------------------------
+// ДАННЫЕ: ОРУЖИЕ
+// ------------------------------------------------------------------------
+const WEAPONS = {
+    pistol: {
+        label: 'Пистолет «Гадюка»',
+        damage: 19, fire_delay: 0.30, reload_time: 1.1,
+        mag: 12, reserve_max: 48, bullet_speed: 1500,
+        spread: 0.035, auto: false, price: 200, kill_reward: 300,
+        slot: 0, category: 'pistol',
+    },
+    deagle: {
+        label: 'Снайперский пистолет «Орёл»',
+        damage: 42, fire_delay: 0.50, reload_time: 1.4,
+        mag: 7, reserve_max: 28, bullet_speed: 1700,
+        spread: 0.025, auto: false, price: 700, kill_reward: 400,
+        slot: 0, category: 'pistol',
+    },
+    rifle: {
+        label: 'Штурмовая винтовка «Сокол»',
+        damage: 28, fire_delay: 0.11, reload_time: 2.1,
+        mag: 30, reserve_max: 90, bullet_speed: 1900,
+        spread: 0.055, auto: true, price: 2700, kill_reward: 300,
+        slot: 1, category: 'rifle',
+    },
+    sniper: {
+        label: 'Снайперская винтовка «Молния»',
+        damage: 75, fire_delay: 1.1, reload_time: 2.8,
+        mag: 5, reserve_max: 20, bullet_speed: 2500,
+        spread: 0.005, auto: false, price: 4700, kill_reward: 500,
+        slot: 1, category: 'rifle',
+    },
+    shotgun: {
+        label: 'Дробовик «Гром»',
+        damage: 12, fire_delay: 0.75, reload_time: 1.8,
+        mag: 8, reserve_max: 32, bullet_speed: 1200,
+        spread: 0.15, auto: false, price: 1500, kill_reward: 350,
+        slot: 1, category: 'rifle', pellets: 6,
+    },
+    smg: {
+        label: 'Пистолет-пулемёт «Шершень»',
+        damage: 18, fire_delay: 0.065, reload_time: 1.6,
+        mag: 40, reserve_max: 120, bullet_speed: 1600,
+        spread: 0.075, auto: true, price: 1400, kill_reward: 250,
+        slot: 1, category: 'rifle',
+    },
+    knife: {
+        label: 'Нож',
+        damage: 60, fire_delay: 0.45, range: 70,
+        price: 0, kill_reward: 1500,
+        slot: 2, category: 'knife',
+    },
+};
+
+const WEAPON_LIST = ['pistol', 'deagle', 'rifle', 'sniper', 'shotgun', 'smg', 'knife'];
+const WEAPON_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
+
+// ------------------------------------------------------------------------
+// СКИНЫ
+// ------------------------------------------------------------------------
+const KNIFE_SKINS = [
+    { id: 'base', name: 'Штатный клинок', rarity: 'base', primary: '#bebec3', secondary: '#5a5a5f', price: 0 },
+    { id: 'crimson', name: 'Багровая паутина', rarity: 'milspec', primary: '#96141e', secondary: '#141414', price: 450 },
+    { id: 'azure', name: 'Лазурная волна', rarity: 'restricted', primary: '#2878d2', secondary: '#c8e6ff', price: 900 },
+    { id: 'emerald', name: 'Изумрудный вихрь', rarity: 'restricted', primary: '#1ea064', secondary: '#0a3c28', price: 950 },
+    { id: 'sunset', name: 'Закатный градиент', rarity: 'classified', primary: '#f07828', secondary: '#e62878', price: 1800 },
+    { id: 'marble', name: 'Мраморный узор', rarity: 'classified', primary: '#e6e1d2', secondary: '#3c3c46', price: 2100 },
+    { id: 'doppler', name: 'Аметистовый переход', rarity: 'covert', primary: '#8c3cdc', secondary: '#140a28', price: 3400 },
+    { id: 'dragon', name: 'Огненный дракон', rarity: 'knife', primary: '#ff8c14', secondary: '#78140a', price: 5200 },
+    { id: 'autotronic', name: 'Хромовый автотроник', rarity: 'knife', primary: '#d2dce6', secondary: '#0a0a0f', price: 4800 },
+];
+
+const PISTOL_SKINS = [
+    { id: 'base', name: 'Штатная окраска', rarity: 'base', primary: '#5a5c60', secondary: '#323236', price: 0 },
+    { id: 'urban', name: 'Городской камуфляж', rarity: 'consumer', primary: '#6e6e64', secondary: '#3c4137', price: 60 },
+    { id: 'cobalt', name: 'Кобальтовый расколот', rarity: 'milspec', primary: '#2846c8', secondary: '#0a0a1e', price: 180 },
+    { id: 'toxic', name: 'Токсичный всплеск', rarity: 'restricted', primary: '#8cdc28', secondary: '#1e280a', price: 340 },
+    { id: 'bloodshot', name: 'Кровавый прострел', rarity: 'classified', primary: '#c8141e', secondary: '#140505', price: 620 },
+    { id: 'neon', name: 'Неоновый импульс', rarity: 'covert', primary: '#3ce6dc', secondary: '#1e0a3c', price: 980 },
+];
+
+const RIFLE_SKINS = [
+    { id: 'base', name: 'Штатная окраска', rarity: 'base', primary: '#5f5a50', secondary: '#37342e', price: 0 },
+    { id: 'desert', name: 'Пустынный камуфляж', rarity: 'consumer', primary: '#bea06e', secondary: '#785f3c', price: 90 },
+    { id: 'forest', name: 'Лесной хищник', rarity: 'milspec', primary: '#3c5a32', secondary: '#141e0f', price: 260 },
+    { id: 'frost', name: 'Ледяной раскол', rarity: 'restricted', primary: '#aadcf0', secondary: '#28466e', price: 520 },
+    { id: 'inferno', name: 'Пламенный ад', rarity: 'classified', primary: '#f05a1e', secondary: '#3c0a05', price: 940 },
+    { id: 'phantom', name: 'Призрачная бездна', rarity: 'covert', primary: '#1e1e28', secondary: '#9628dc', price: 1650 },
+];
+
+const SKIN_TABLES = {
+    knife: KNIFE_SKINS,
+    pistol: PISTOL_SKINS,
+    rifle: RIFLE_SKINS,
+};
+
+const WEAPON_SKIN_CATEGORY = {
+    pistol: 'pistol', deagle: 'pistol',
+    rifle: 'rifle', sniper: 'rifle', shotgun: 'rifle', smg: 'rifle',
+    knife: 'knife',
+};
+
+// ========================================================================
+// ИГРОВОЙ ДВИЖОК
+// ========================================================================
+
+class Vec2 {
+    constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+    clone() { return new Vec2(this.x, this.y); }
+    add(v) { return new Vec2(this.x + v.x, this.y + v.y); }
+    sub(v) { return new Vec2(this.x - v.x, this.y - v.y); }
+    scale(s) { return new Vec2(this.x * s, this.y * s); }
+    len() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+    normalize() { const l = this.len(); return l > 0 ? this.scale(1/l) : new Vec2(); }
+    dot(v) { return this.x * v.x + this.y * v.y; }
+    distTo(v) { return this.sub(v).len(); }
+    lerp(v, t) { return new Vec2(this.x + (v.x - this.x) * t, this.y + (v.y - this.y) * t); }
+    clamp(min, max) { return new Vec2(Math.max(min, Math.min(max, this.x)), Math.max(min, Math.min(max, this.y))); }
+}
+
+function vecFromAngle(a) { return new Vec2(Math.cos(a), Math.sin(a)); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
+
+// ------------------------------------------------------------------------
+// СТЕНЫ
+// ------------------------------------------------------------------------
+function buildWalls() {
+    const walls = [];
+    walls.push({ x: -40, y: -40, w: ARENA_W + 80, h: 40 });
+    walls.push({ x: -40, y: ARENA_H, w: ARENA_W + 80, h: 40 });
+    walls.push({ x: -40, y: -40, w: 40, h: ARENA_H + 80 });
+    walls.push({ x: ARENA_W, y: -40, w: 40, h: ARENA_H + 80 });
+    
+    const layout = [
+        [300, 300, 160, 60], [300, 500, 60, 200],
+        [900, 200, 220, 60], [1100, 400, 60, 260],
+        [1600, 300, 60, 300], [1750, 650, 220, 60],
+        [500, 900, 260, 60], [900, 1000, 60, 260],
+        [1400, 950, 220, 60], [1700, 1100, 60, 220],
+        [200, 1150, 220, 60], [2000, 200, 60, 260],
+        [950, 550, 100, 40], [1300, 850, 100, 40],
+    ];
+    for (const [x, y, w, h] of layout) walls.push({ x, y, w, h });
+    return walls;
+}
+
+const WALLS = buildWalls();
+
+function rectBlocks(walls, pos, radius) {
+    const p = { x: pos.x - radius, y: pos.y - radius, w: radius * 2, h: radius * 2 };
+    for (const w of walls) {
+        if (p.x < w.x + w.w && p.x + p.w > w.x && p.y < w.y + w.h && p.y + p.h > w.y) return w;
+    }
+    return null;
+}
+
+function moveWithCollision(pos, delta, radius, walls) {
+    let newPos = pos.clone();
+    if (delta.len() === 0) return newPos;
+    
+    const testPos = pos.add(delta);
+    if (!rectBlocks(walls, testPos, radius)) {
+        return testPos;
+    }
+    
+    // Движение по X
+    let testX = new Vec2(pos.x + delta.x, pos.y);
+    if (!rectBlocks(walls, testX, radius)) {
+        newPos.x = testX.x;
+    } else {
+        for (const step of [0.5, 0.25, 0.1]) {
+            testX = new Vec2(pos.x + delta.x * step, pos.y);
+            if (!rectBlocks(walls, testX, radius)) { newPos.x = testX.x; break; }
+        }
+    }
+    
+    // Движение по Y
+    let testY = new Vec2(newPos.x, pos.y + delta.y);
+    if (!rectBlocks(walls, testY, radius)) {
+        newPos.y = testY.y;
+    } else {
+        for (const step of [0.5, 0.25, 0.1]) {
+            testY = new Vec2(newPos.x, pos.y + delta.y * step);
+            if (!rectBlocks(walls, testY, radius)) { newPos.y = testY.y; break; }
+        }
+    }
+    
+    // Отталкивание от стены
+    const block = rectBlocks(walls, newPos, radius);
+    if (block) {
+        const center = new Vec2(block.x + block.w/2, block.y + block.h/2);
+        const dir = newPos.sub(center);
+        if (dir.len() > 0) {
+            const nd = dir.normalize();
+            const testPos2 = center.add(nd.scale(radius + 2));
+            if (!rectBlocks(walls, testPos2, radius)) newPos = testPos2;
+            else newPos = pos.clone();
+        }
+    }
+    
+    newPos.x = clamp(newPos.x, radius, ARENA_W - radius);
+    newPos.y = clamp(newPos.y, radius, ARENA_H - radius);
+    return newPos;
+}
+
+function hasLineOfSight(a, b, walls) {
+    const steps = 24;
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const p = new Vec2(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
+        for (const w of walls) {
+            if (p.x >= w.x && p.x <= w.x + w.w && p.y >= w.y && p.y <= w.y + w.h) return false;
+        }
+    }
+    return true;
+}
+
+// ------------------------------------------------------------------------
+// СОСТОЯНИЕ ОРУЖИЯ
+// ------------------------------------------------------------------------
+class WeaponState {
+    constructor(key) {
+        this.key = key;
+        const data = WEAPONS[key];
+        this.mag = data.mag || 0;
+        this.ammoInMag = this.mag;
+        this.reserve = data.reserve_max || 0;
+        this.cooldown = 0;
+        this.reloading = 0;
+    }
+    
+    canShoot() {
+        if (this.key === 'knife') return this.cooldown <= 0;
+        return this.cooldown <= 0 && this.ammoInMag > 0 && this.reloading <= 0;
+    }
+    
+    startReload() {
+        const data = WEAPONS[this.key];
+        if (this.key === 'knife') return;
+        if (this.ammoInMag >= this.mag || this.reserve <= 0 || this.reloading > 0) return;
+        this.reloading = data.reload_time;
+    }
+    
+    update(dt) {
+        if (this.cooldown > 0) this.cooldown -= dt;
+        if (this.reloading > 0) {
+            this.reloading -= dt;
+            if (this.reloading <= 0) {
+                const data = WEAPONS[this.key];
+                const need = this.mag - this.ammoInMag;
+                const take = Math.min(need, this.reserve);
+                this.ammoInMag += take;
+                this.reserve -= take;
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------
+// ИГРОК
+// ------------------------------------------------------------------------
+class Player {
+    constructor(x, y, isPlayer = true) {
+        this.pos = new Vec2(x, y);
+        this.radius = PLAYER_RADIUS;
+        this.speed = 260;
+        this.health = 100;
+        this.maxHealth = 100;
+        this.angle = 0;
+        this.money = 800;
+        this.kills = 0;
+        this.deaths = 0;
+        this.alive = true;
+        this.isPlayer = isPlayer;
+        this.name = isPlayer ? 'Игрок' : `Бот ${randInt(1, 999)}`;
+        
+        this.ownedWeapons = new Set(['pistol', 'knife']);
+        this.weapons = {
+            pistol: new WeaponState('pistol'),
+            knife: new WeaponState('knife'),
+        };
+        this.current = 'pistol';
+        
+        this.equippedSkins = { pistol: 'base', rifle: 'base', knife: 'base' };
+        this.ownedSkins = { pistol: new Set(['base']), rifle: new Set(['base']), knife: new Set(['base']) };
+        
+        this.meleeSwing = 0;
+        this.walkPhase = 0;
+        this.moving = false;
+        this.aiShootCooldown = 0;
+        this.aiTarget = null;
+        this.aiTargetTimer = 0;
+        
+        // Цвета
+        if (isPlayer) {
+            this.colors = { body: '#345c96', bodyDark: '#1c3458', leg: '#283c5a', head: '#d2af8c' };
+        } else {
+            const hue = rand(0, 360);
+            const r = Math.floor(80 + 100 * Math.sin(hue * Math.PI / 180));
+            const g = Math.floor(80 + 100 * Math.sin((hue + 120) * Math.PI / 180));
+            const b = Math.floor(80 + 100 * Math.sin((hue + 240) * Math.PI / 180));
+            this.colors = { body: `rgb(${r},${g},${b})`, bodyDark: `rgb(${r>>1},${g>>1},${b>>1})`, leg: `rgb(${r/3|0},${g/3|0},${b/3|0})`, head: '#c49673' };
+        }
+    }
+    
+    buyWeapon(key) {
+        const data = WEAPONS[key];
+        if (this.ownedWeapons.has(key)) return { ok: false, msg: 'Уже куплено' };
+        if (this.money < data.price) return { ok: false, msg: 'Недостаточно денег' };
+        this.money -= data.price;
+        this.ownedWeapons.add(key);
+        this.weapons[key] = new WeaponState(key);
+        this.current = key;
+        return { ok: true, msg: 'Куплено' };
+    }
+    
+    buySkin(weaponKey, skinId) {
+        const category = WEAPON_SKIN_CATEGORY[weaponKey] || weaponKey;
+        const skins = SKIN_TABLES[category];
+        const skin = skins.find(s => s.id === skinId);
+        if (!skin) return { ok: false, msg: 'Скин не найден' };
+        
+        if (this.ownedSkins[category].has(skinId)) {
+            this.equippedSkins[category] = skinId;
+            return { ok: true, msg: 'Экипировано' };
+        }
+        if (this.money < skin.price) return { ok: false, msg: 'Недостаточно денег' };
+        this.money -= skin.price;
+        this.ownedSkins[category].add(skinId);
+        this.equippedSkins[category] = skinId;
+        return { ok: true, msg: 'Куплено и экипировано' };
+    }
+    
+    currentSkin(weaponKey) {
+        const category = WEAPON_SKIN_CATEGORY[weaponKey] || weaponKey;
+        const sid = this.equippedSkins[category] || 'base';
+        const skins = SKIN_TABLES[category];
+        const skin = skins.find(s => s.id === sid);
+        return skin || skins[0];
+    }
+    
+    switchWeapon(key) {
+        if (this.ownedWeapons.has(key)) this.current = key;
+    }
+    
+    getWeaponState() { return this.weapons[this.current]; }
+    
+    update(dt, keys, mousePos, cam, walls, allPlayers) {
+        if (!this.alive) return null;
+        
+        if (!this.isPlayer && allPlayers) {
+            return this.updateAI(dt, allPlayers, walls);
+        }
+        
+        let move = new Vec2(0, 0);
+        if (keys) {
+            if (keys['w']) move.y -= 1;
+            if (keys['s']) move.y += 1;
+            if (keys['a']) move.x -= 1;
+            if (keys['d']) move.x += 1;
+        }
+        
+        const moving = move.len() > 0;
+        if (moving && walls) {
+            move = move.normalize().scale(this.speed * dt);
+            this.pos = moveWithCollision(this.pos, move, this.radius, walls);
+            this.walkPhase += dt * 11;
+        } else {
+            this.walkPhase = 0;
+        }
+        this.moving = moving;
+        
+        this.pos.x = clamp(this.pos.x, this.radius, ARENA_W - this.radius);
+        this.pos.y = clamp(this.pos.y, this.radius, ARENA_H - this.radius);
+        
+        if (mousePos && cam) {
+            const worldMouse = new Vec2(mousePos.x + cam.x, mousePos.y + cam.y);
+            const d = worldMouse.sub(this.pos);
+            if (d.len() > 0) this.angle = Math.atan2(d.y, d.x);
+        }
+        
+        for (const w of Object.values(this.weapons)) w.update(dt);
+        if (this.meleeSwing > 0) this.meleeSwing -= dt;
+        
+        return null;
+    }
+    
+    updateAI(dt, allPlayers, walls) {
+        if (!this.alive) return null;
+        
+        // Выбор цели
+        this.aiTargetTimer -= dt;
+        if (this.aiTargetTimer <= 0 || !this.aiTarget || !this.aiTarget.alive) {
+            this.aiTargetTimer = 1.5;
+            const enemies = allPlayers.filter(p => p !== this && p.alive);
+            if (enemies.length) {
+                this.aiTarget = enemies.reduce((a, b) => this.pos.distTo(a.pos) < this.pos.distTo(b.pos) ? a : b);
+            } else {
+                this.aiTarget = null;
+            }
+        }
+        
+        if (!this.aiTarget) {
+            if (Math.random() < 0.02) this.angle = rand(0, Math.PI * 2);
+            const move = vecFromAngle(this.angle).scale(this.speed * dt * 0.3);
+            this.pos = moveWithCollision(this.pos, move, this.radius, walls);
+            this.walkPhase += dt * 5;
+            return null;
+        }
+        
+        const target = this.aiTarget;
+        const dist = this.pos.distTo(target.pos);
+        const canSee = hasLineOfSight(this.pos, target.pos, walls);
+        
+        let move = new Vec2(0, 0);
+        let shouldShoot = false;
+        let shootAngle = 0;
+        
+        if (canSee && target.alive) {
+            const d = target.pos.sub(this.pos);
+            this.angle = Math.atan2(d.y, d.x);
+            
+            if (dist > 350) move = d.normalize().scale(1.2);
+            else if (dist < 160) move = d.normalize().scale(-0.8);
+            else if (Math.random() < 0.01) {
+                move = new Vec2(rand(-1, 1), rand(-1, 1)).normalize().scale(0.3);
+            }
+            
+            this.aiShootCooldown -= dt;
+            if (this.aiShootCooldown <= 0) {
+                const wstate = this.getWeaponState();
+                if (wstate.canShoot() && Math.random() < 0.2) {
+                    const data = WEAPONS[this.current];
+                    if (this.current !== 'knife') {
+                        this.aiShootCooldown = data.fire_delay * 1.5;
+                        const spread = rand(-0.08, 0.08);
+                        shouldShoot = true;
+                        shootAngle = this.angle + spread;
+                    } else if (dist < 90) {
+                        this.meleeSwing = 0.2;
+                        target.takeDamage(28);
+                    }
+                }
+            }
+        } else {
+            const d = target.pos.sub(this.pos);
+            if (d.len() > 1) {
+                move = d.normalize().scale(0.5);
+                this.angle = Math.atan2(d.y, d.x);
+            }
+        }
+        
+        this.moving = move.len() > 0.001;
+        if (this.moving) {
+            if (move.len() > 1) move = move.normalize();
+            move = move.scale(this.speed * dt);
+            this.pos = moveWithCollision(this.pos, move, this.radius, walls);
+            this.walkPhase += dt * 10;
+        } else {
+            this.walkPhase = 0;
+        }
+        
+        this.pos.x = clamp(this.pos.x, this.radius, ARENA_W - this.radius);
+        this.pos.y = clamp(this.pos.y, this.radius, ARENA_H - this.radius);
+        
+        for (const w of Object.values(this.weapons)) w.update(dt);
+        if (this.meleeSwing > 0) this.meleeSwing -= dt;
+        
+        return { move, shouldShoot, shootAngle };
+    }
+    
+    takeDamage(dmg) {
+        if (!this.alive) return;
+        this.health -= dmg;
+        if (this.health <= 0) {
+            this.health = 0;
+            this.alive = false;
+            this.deaths++;
+        }
+    }
+    
+    draw(ctx, cam, showName = true) {
+        const p = this.pos.sub(cam);
+        const dir = vecFromAngle(this.angle);
+        const perp = new Vec2(-dir.y, dir.x);
+        
+        // Тело
+        const x = p.x, y = p.y, r = this.radius;
+        const legOff = Math.floor(4 * Math.sin(this.walkPhase));
+        
+        // Тень
+        ctx.fillStyle = 'rgba(15,15,18,0.5)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 40, 18, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ноги
+        ctx.fillStyle = '#30363d';
+        ctx.fillRect(x - 11, y + 20 + legOff, 8, 20);
+        ctx.fillRect(x + 3, y + 20 - legOff, 8, 20);
+        
+        // Ботинки
+        ctx.fillStyle = '#121417';
+        ctx.fillRect(x - 13, y + 38 + legOff, 11, 6);
+        ctx.fillRect(x + 2, y + 38 - legOff, 12, 6);
+        
+        // Торс
+        ctx.fillStyle = '#0c0f13';
+        ctx.fillRect(x - 14, y - 1, 28, 27);
+        ctx.fillStyle = this.colors.body;
+        ctx.fillRect(x - 12, y + 1, 24, 24);
+        
+        // Бронежилет
+        ctx.fillStyle = this.colors.bodyDark;
+        ctx.fillRect(x - 9, y + 4, 18, 4);
+        
+        // Голова
+        ctx.fillStyle = this.colors.head;
+        ctx.beginPath();
+        ctx.arc(x, y - 12, 9, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Шлем
+        ctx.fillStyle = '#181c22';
+        ctx.beginPath();
+        ctx.ellipse(x, y - 20, 10, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(x - 11, y - 16, 22, 5);
+        
+        // Оружие
+        const armGrip = p.add(dir.scale(r * 0.5));
+        if (this.current !== 'knife') {
+            const skin = this.currentSkin(this.current);
+            const length = (this.current === 'pistol' || this.current === 'deagle') ? 30 : 44;
+            const base = armGrip;
+            const tip = base.add(dir.scale(length));
+            
+            ctx.strokeStyle = '#191c20';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(base.x, base.y);
+            ctx.lineTo(tip.x, tip.y);
+            ctx.stroke();
+            
+            ctx.strokeStyle = skin.primary;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(base.x, base.y);
+            ctx.lineTo(tip.x, tip.y);
+            ctx.stroke();
+            
+            ctx.strokeStyle = skin.secondary;
+            ctx.lineWidth = 3;
+            const mid = base.add(dir.scale(length * 0.35));
+            ctx.beginPath();
+            ctx.moveTo(base.x, base.y);
+            ctx.lineTo(mid.x, mid.y);
+            ctx.stroke();
+        } else {
+            const skin = this.currentSkin('knife');
+            if (this.meleeSwing > 0) {
+                const t = 1 - this.meleeSwing / 0.18;
+                const swAngle = this.angle - 0.9 + t * 1.8;
+                const kdir = vecFromAngle(swAngle);
+                const tip = armGrip.add(kdir.scale(40));
+                ctx.strokeStyle = skin.secondary;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(armGrip.x, armGrip.y);
+                ctx.lineTo(tip.x, tip.y);
+                ctx.stroke();
+                ctx.strokeStyle = skin.primary;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(armGrip.x, armGrip.y);
+                ctx.lineTo(tip.x, tip.y);
+                ctx.stroke();
+            }
+        }
+        
+        // Имя
+        if (showName) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px Segoe UI, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.name, x, y - this.radius - 30);
+        }
+        
+        // HP бар
+        if (this.health < this.maxHealth) {
+            const w = 34;
+            const ratio = this.health / this.maxHealth;
+            ctx.fillStyle = '#3c1414';
+            ctx.fillRect(x - w/2, y - this.radius - 22, w, 5);
+            ctx.fillStyle = '#5ad278';
+            ctx.fillRect(x - w/2, y - this.radius - 22, w * ratio, 5);
+        }
+    }
+}
+
+// ========================================================================
+// ОСНОВНОЙ КЛАСС ИГРЫ
+// ========================================================================
+
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = W;
+        this.canvas.height = H;
+        
+        this.cam = new Vec2(0, 0);
+        this.shake = 0;
+        this.keys = {};
+        this.mousePos = new Vec2(W/2, H/2);
+        this.mouseDown = false;
+        
+        // Состояние
+        this.state = 'menu'; // menu, playing, pause, shop, roundEnd, spectate
+        this.roundNum = 0;
+        this.roundTime = 0;
+        this.buyPhase = false;
+        this.buyTime = 0;
+        this.message = '';
+        this.messageTimer = 0;
+        this.killFeed = [];
+        this.roundEndTimer = 0;
+        this.spectateTarget = null;
+        this.shopTab = 'rifle';
+        this.shopReturnState = 'menu';
+        this.shopMessage = '';
+        this.shopMessageTimer = 0;
+        
+        this.players = [];
+        this.bullets = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.player = null;
+        
+        this.setupControls();
+        this.newGame();
+        this.loop();
+    }
+    
+    setupControls() {
+        document.addEventListener('keydown', (e) => {
+            this.keys[e.key.toLowerCase()] = true;
+            this.keys[e.key] = true;
+            
+            if (e.key === 'Escape') {
+                if (this.state === 'playing' || this.state === 'spectate') {
+                    this.pause();
+                } else if (this.state === 'pause') {
+                    this.resume();
+                } else if (this.state === 'shop') {
+                    this.closeShop();
+                }
+            }
+            if (e.key === 'b' || e.key === 'B') {
+                if (this.state === 'playing' || this.state === 'spectate') {
+                    this.openShop();
+                }
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                if ((this.state === 'playing' || this.state === 'spectate') && this.player && this.player.alive) {
+                    this.player.getWeaponState().startReload();
+                }
+            }
+            if (e.key >= '1' && e.key <= '7') {
+                if ((this.state === 'playing' || this.state === 'spectate') && this.player && this.player.alive) {
+                    const idx = parseInt(e.key) - 1;
+                    if (idx < WEAPON_LIST.length) {
+                        this.player.switchWeapon(WEAPON_LIST[idx]);
+                    }
+                }
+            }
+            if (e.key === ' ' || e.key === 'Space') {
+                e.preventDefault();
+                if (this.state === 'spectate') {
+                    const aliveBots = this.players.filter(p => !p.isPlayer && p.alive);
+                    if (aliveBots.length) {
+                        if (this.spectateTarget && aliveBots.includes(this.spectateTarget)) {
+                            const idx = aliveBots.indexOf(this.spectateTarget);
+                            this.spectateTarget = aliveBots[(idx + 1) % aliveBots.length];
+                        } else {
+                            this.spectateTarget = aliveBots[0];
+                        }
+                    }
+                }
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            this.keys[e.key.toLowerCase()] = false;
+            this.keys[e.key] = false;
+        });
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            this.mousePos = new Vec2(
+                (e.clientX - rect.left) * scaleX,
+                (e.clientY - rect.top) * scaleY
+            );
+        });
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) this.mouseDown = true;
+        });
+        this.canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) this.mouseDown = false;
+        });
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+    
+    // --------------------------------------------------------------------
+    // УПРАВЛЕНИЕ ИГРОЙ
+    // --------------------------------------------------------------------
+    newGame() {
+        this.player = new Player(ARENA_W/2, ARENA_H/2, true);
+        this.players = [this.player];
+        
+        const numBots = 5;
+        const edges = [
+            [60, 60], [ARENA_W - 60, 60], [60, ARENA_H - 60],
+            [ARENA_W - 60, ARENA_H - 60], [ARENA_W/2, 60], [ARENA_W/2, ARENA_H - 60]
+        ];
+        for (let i = 0; i < numBots; i++) {
+            const [ex, ey] = edges[randInt(0, edges.length - 1)];
+            const bot = new Player(ex + rand(-40, 40), ey + rand(-40, 40), false);
+            bot.name = `Бот ${i + 1}`;
+            bot.money = 2000;
+            const weapons = ['deagle', 'rifle', 'smg', 'shotgun', 'sniper'];
+            const toBuy = weapons.sort(() => Math.random() - 0.5).slice(0, randInt(1, 2));
+            for (const w of toBuy) bot.buyWeapon(w);
+            this.players.push(bot);
+        }
+        
+        this.bullets = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.killFeed = [];
+        this.roundNum = 0;
+        this.spectateTarget = null;
+        this.startRound();
+    }
+    
+    startRound() {
+        this.roundNum++;
+        for (const p of this.players) {
+            p.health = p.maxHealth;
+            p.alive = true;
+            p.pos = new Vec2(rand(100, ARENA_W - 100), rand(100, ARENA_H - 100));
+            for (const w of Object.values(p.weapons)) {
+                if (w.key !== 'knife') {
+                    const data = WEAPONS[w.key];
+                    w.ammoInMag = w.mag;
+                    w.reserve = data.reserve_max;
+                }
+            }
+        }
+        
+        this.bullets = [];
+        this.roundTime = 120;
+        this.buyPhase = true;
+        this.buyTime = 15;
+        this.state = 'playing';
+        this.spectateTarget = null;
+        this.showMessage(`Раунд ${this.roundNum} — каждый сам за себя! (B — магазин)`);
+        document.getElementById('roundEnd').classList.remove('active');
+        this.updateUI();
+    }
+    
+    showMessage(text, t = 2.5) {
+        this.message = text;
+        this.messageTimer = t;
+        const el = document.getElementById('message');
+        el.textContent = text;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), t * 1000);
+    }
+    
+    pushKill(text) {
+        this.killFeed.unshift({ text, timer: 3.5 });
+        if (this.killFeed.length > 5) this.killFeed.pop();
+        this.updateUI();
+    }
+    
+    // --------------------------------------------------------------------
+    // СТРЕЛЬБА
+    // --------------------------------------------------------------------
+    handleShoot(shooter) {
+        const wstate = shooter.getWeaponState();
+        const data = WEAPONS[shooter.current];
+        
+        if (shooter.current === 'knife') {
+            if (!wstate.canShoot()) return;
+            wstate.cooldown = data.fire_delay;
+            shooter.meleeSwing = 0.18;
+            for (const target of this.players) {
+                if (target === shooter || !target.alive) continue;
+                if (shooter.pos.distTo(target.pos) <= data.range) {
+                    const d = target.pos.sub(shooter.pos);
+                    const angDiff = Math.abs((Math.atan2(d.y, d.x) - shooter.angle + Math.PI) % (2 * Math.PI) - Math.PI);
+                    if (angDiff < 1.1) {
+                        this.dealDamage(shooter, target, data.damage, true);
+                        break;
+                    }
+                }
+            }
+            return;
+        }
+        
+        if (!wstate.canShoot()) return;
+        wstate.cooldown = data.fire_delay;
+        wstate.ammoInMag--;
+        
+        const skin = shooter.currentSkin(shooter.current);
+        const pellets = data.pellets || 1;
+        for (let i = 0; i < pellets; i++) {
+            const spread = rand(-data.spread, data.spread);
+            this.bullets.push({
+                pos: shooter.pos.clone(),
+                vel: vecFromAngle(shooter.angle + spread).scale(data.bullet_speed),
+                damage: data.damage,
+                owner: shooter,
+                color: skin.primary,
+                isPellet: pellets > 1,
+                trail: [shooter.pos.clone()],
+                dead: false,
+            });
+        }
+        
+        const dir = vecFromAngle(shooter.angle);
+        for (let i = 0; i < 3; i++) {
+            this.particles.push({
+                pos: shooter.pos.add(dir.scale(30)),
+                vel: new Vec2(dir.x * 200 + rand(-40, 40), dir.y * 200 + rand(-40, 40)),
+                life: 0.12,
+                maxLife: 0.12,
+                color: '#f0c83c',
+                size: 4,
+            });
+        }
+        if (shooter.isPlayer) this.shake = Math.min(this.shake + 2, 8);
+    }
+    
+    dealDamage(attacker, target, dmg, knife = false) {
+        target.takeDamage(dmg);
+        for (let i = 0; i < 5; i++) {
+            this.particles.push({
+                pos: target.pos.clone(),
+                vel: new Vec2(rand(-100, 100), rand(-100, 100)),
+                life: 0.35,
+                maxLife: 0.35,
+                color: '#dc3c3c',
+                size: 4,
+            });
+        }
+        if (!target.alive) {
+            const reward = knife ? WEAPONS.knife.kill_reward : WEAPONS[attacker.current].kill_reward;
+            attacker.money += reward;
+            attacker.kills++;
+            this.floatingTexts.push({
+                pos: target.pos.clone(),
+                text: `+$${reward}`,
+                color: '#e6be5a',
+                life: 1.0,
+                maxLife: 1.0,
+                size: 22,
+            });
+            const verb = knife ? 'зарезал' : 'устранил';
+            this.pushKill(`${attacker.name} ${verb} ${target.name}`);
+        }
+    }
+    
+    // --------------------------------------------------------------------
+    // ОБНОВЛЕНИЕ
+    // --------------------------------------------------------------------
+    update(dt) {
+        if (this.state !== 'playing' && this.state !== 'spectate') return;
+        if (this.state === 'spectate') {
+            // В режиме наблюдения обновляем только пули и частицы
+            this.updateBullets(dt);
+            this.updateParticles(dt);
+            this.updateTimers(dt);
+            this.updateUI();
+            return;
+        }
+        
+        // Обновляем игрока
+        const result = this.player.update(dt, this.keys, this.mousePos, this.cam, WALLS);
+        if (this.player.alive && this.mouseDown) {
+            const data = WEAPONS[this.player.current];
+            if (this.player.current === 'knife' || data.auto) {
+                this.handleShoot(this.player);
+            } else {
+                this.handleShoot(this.player);
+            }
+        }
+        
+        // Обновляем ботов
+        for (const p of this.players) {
+            if (p.isPlayer || !p.alive) continue;
+            const r = p.update(dt, null, null, null, WALLS, this.players);
+            if (r && r.shouldShoot && p.alive) {
+                const wstate = p.getWeaponState();
+                const data = WEAPONS[p.current];
+                if (wstate.canShoot() && p.current !== 'knife') {
+                    wstate.cooldown = data.fire_delay;
+                    wstate.ammoInMag--;
+                    const skin = p.currentSkin(p.current);
+                    const pellets = data.pellets || 1;
+                    for (let i = 0; i < pellets; i++) {
+                        const spread = rand(-0.08, 0.08);
+                        this.bullets.push({
+                            pos: p.pos.clone(),
+                            vel: vecFromAngle(r.shootAngle + spread).scale(data.bullet_speed),
+                            damage: data.damage,
+                            owner: p,
+                            color: skin.primary,
+                            isPellet: pellets > 1,
+                            trail: [p.pos.clone()],
+                            dead: false,
+                        });
+                    }
+                }
+            }
+        }
+        
+        this.updateBullets(dt);
+        this.updateParticles(dt);
+        this.updateTimers(dt);
+        
+        // Проверка состояния игры
+        const alivePlayers = this.players.filter(p => p.alive);
+        
+        if (!this.player.alive && this.state === 'playing') {
+            this.state = 'spectate';
+            const aliveBots = this.players.filter(p => !p.isPlayer && p.alive);
+            if (aliveBots.length) this.spectateTarget = aliveBots[0];
+            this.showMessage('Вы погибли! Нажмите SPACE для смены цели', 2.0);
+        }
+        
+        if (alivePlayers.length <= 1) {
+            if (alivePlayers.length === 1 && alivePlayers[0].isPlayer) {
+                this.roundEnd(true);
+            } else if (alivePlayers.length === 0) {
+                this.roundEnd(false);
+            } else if (alivePlayers.length === 1 && !alivePlayers[0].isPlayer) {
+                this.roundEnd(false);
+                this.showMessage(`Победил ${alivePlayers[0].name}!`, 2.0);
+            }
+        }
+        
+        if (this.roundTime <= 0) {
+            const winner = this.players.reduce((a, b) => a.kills > b.kills ? a : b);
+            this.roundEnd(winner === this.player);
+            this.showMessage(`Время вышло! Победил ${winner.name} с ${winner.kills} убийствами`);
+        }
+        
+        this.updateUI();
+    }
+    
+    updateBullets(dt) {
+        for (const b of this.bullets) {
+            b.pos = b.pos.add(b.vel.scale(dt));
+            b.trail.push(b.pos.clone());
+            if (b.trail.length > 4) b.trail.shift();
+            
+            if (b.pos.x < 0 || b.pos.x > ARENA_W || b.pos.y < 0 || b.pos.y > ARENA_H) b.dead = true;
+            for (const w of WALLS) {
+                if (b.pos.x >= w.x && b.pos.x <= w.x + w.w && b.pos.y >= w.y && b.pos.y <= w.y + w.h) {
+                    b.dead = true;
+                    break;
+                }
+            }
+            
+            if (b.owner && b.owner.alive) {
+                for (const target of this.players) {
+                    if (target === b.owner || !target.alive) continue;
+                    if (b.pos.distTo(target.pos) < target.radius) {
+                        this.dealDamage(b.owner, target, b.damage);
+                        b.dead = true;
+                        break;
+                    }
+                }
+            }
+        }
+        this.bullets = this.bullets.filter(b => !b.dead);
+    }
+    
+    updateParticles(dt) {
+        for (const p of this.particles) {
+            p.pos = p.pos.add(p.vel.scale(dt));
+            p.vel = p.vel.scale(0.9);
+            p.life -= dt;
+        }
+        this.particles = this.particles.filter(p => p.life > 0);
+        
+        for (const ft of this.floatingTexts) {
+            ft.pos.y -= 40 * dt;
+            ft.life -= dt;
+        }
+        this.floatingTexts = this.floatingTexts.filter(ft => ft.life > 0);
+    }
+    
+    updateTimers(dt) {
+        if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 20);
+        
+        if (this.buyPhase) {
+            this.buyTime -= dt;
+            if (this.buyTime <= 0) this.buyPhase = false;
+        }
+        
+        this.roundTime -= dt;
+        
+        if (this.messageTimer > 0) this.messageTimer -= dt;
+        for (const kf of this.killFeed) kf.timer -= dt;
+        this.killFeed = this.killFeed.filter(kf => kf.timer > 0);
+        
+        if (this.shopMessageTimer > 0) this.shopMessageTimer -= dt;
+    }
+    
+    roundEnd(win) {
+        if (win) {
+            const bonus = 3250;
+            this.player.money += bonus;
+            this.showMessage(`Раунд ${this.roundNum} выигран! +$${bonus}`, 3.0);
+        } else {
+            const bonus = 1400;
+            this.player.money += bonus;
+            this.showMessage(`Раунд ${this.roundNum} проигран. +$${bonus}`, 3.0);
+        }
+        this.state = 'roundEnd';
+        this.roundEndTimer = 3.0;
+        document.getElementById('roundEnd').classList.add('active');
+        document.getElementById('roundEndTitle').textContent = this.message;
+        
+        setTimeout(() => {
+            this.startRound();
+        }, 3000);
+    }
+    
+    // --------------------------------------------------------------------
+    // КАМЕРА
+    // --------------------------------------------------------------------
+    getCamera() {
+        let p;
+        if (this.state === 'spectate' && this.spectateTarget && this.spectateTarget.alive) {
+            p = this.spectateTarget;
+        } else {
+            p = this.player;
+        }
+        let cam = new Vec2(p.pos.x - W/2, p.pos.y - H/2);
+        cam.x = clamp(cam.x, 0, ARENA_W - W);
+        cam.y = clamp(cam.y, 0, ARENA_H - H);
+        if (this.shake > 0) {
+            cam.x += rand(-this.shake, this.shake);
+            cam.y += rand(-this.shake, this.shake);
+        }
+        return cam;
+    }
+    
+    // --------------------------------------------------------------------
+    // ОТРИСОВКА
+    // --------------------------------------------------------------------
+    draw() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, W, H);
+        this.cam = this.getCamera();
+        
+        this.drawArena(ctx);
+        this.drawBullets(ctx);
+        this.drawPlayers(ctx);
+        this.drawParticles(ctx);
+        
+        // Спектатор
+        if (this.state === 'spectate' && this.spectateTarget && this.spectateTarget.alive) {
+            const p = this.spectateTarget.pos.sub(this.cam);
+            ctx.strokeStyle = '#e6be5a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, this.spectateTarget.radius + 8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        this.drawHUD();
+    }
+    
+    drawArena(ctx) {
+        // Пол
+        const tileSize = 128;
+        const startX = -Math.floor(this.cam.x % tileSize) - tileSize;
+        const startY = -Math.floor(this.cam.y % tileSize) - tileSize;
+        for (let y = startY; y < H + tileSize; y += tileSize) {
+            for (let x = startX; x < W + tileSize; x += tileSize) {
+                ctx.fillStyle = '#3a3c44';
+                ctx.fillRect(x, y, tileSize, tileSize);
+                ctx.strokeStyle = '#30323a';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, tileSize, tileSize);
+                // Небольшой шум
+                for (let i = 0; i < 20; i++) {
+                    const nx = x + rand(0, tileSize);
+                    const ny = y + rand(0, tileSize);
+                    const shade = rand(-8, 8);
+                    ctx.fillStyle = `rgb(${58 + shade}, ${60 + shade}, ${66 + shade})`;
+                    ctx.fillRect(nx, ny, 1, 1);
+                }
+            }
+        }
+        
+        // Стены
+        for (const w of WALLS) {
+            const r = { x: w.x - this.cam.x, y: w.y - this.cam.y, w: w.w, h: w.h };
+            if (r.x + r.w < 0 || r.y + r.h < 0 || r.x > W || r.y > H) continue;
+            const isBorder = w.w > ARENA_W - 10 || w.h > ARENA_H - 10;
+            if (isBorder) {
+                ctx.fillStyle = '#121216';
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.strokeStyle = '#22222a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(r.x, r.y, r.w, r.h);
+            } else {
+                // Ящик
+                ctx.fillStyle = '#765434';
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+                ctx.fillStyle = '#5c3f24';
+                const ph = Math.max(10, r.h / 4);
+                for (let y = r.y; y < r.y + r.h; y += ph) {
+                    ctx.fillRect(r.x, y, r.w, 2);
+                }
+                ctx.strokeStyle = '#3c2818';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(r.x, r.y, r.w, r.h);
+                // Уголки
+                ctx.fillStyle = '#96969b';
+                const c = 4;
+                ctx.fillRect(r.x, r.y, c, c);
+                ctx.fillRect(r.x + r.w - c, r.y, c, c);
+                ctx.fillRect(r.x, r.y + r.h - c, c, c);
+                ctx.fillRect(r.x + r.w - c, r.y + r.h - c, c, c);
+            }
+        }
+    }
+    
+    drawBullets(ctx) {
+        for (const b of this.bullets) {
+            if (b.trail.length >= 2) {
+                const p1 = b.trail[0].sub(this.cam);
+                const p2 = b.trail[b.trail.length - 1].sub(this.cam);
+                ctx.strokeStyle = b.color;
+                ctx.lineWidth = b.isPellet ? 1 : 2;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+    }
+    
+    drawPlayers(ctx) {
+        for (const p of this.players) {
+            if (p.alive) p.draw(ctx, this.cam, !p.isPlayer);
+        }
+    }
+    
+    drawParticles(ctx) {
+        for (const p of this.particles) {
+            const t = clamp(p.life / p.maxLife, 0, 1);
+            const s = Math.max(1, p.size * t);
+            const alpha = Math.floor(255 * t);
+            const pos = p.pos.sub(this.cam);
+            ctx.fillStyle = p.color + Math.floor(alpha / 16).toString(16);
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, s, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        for (const ft of this.floatingTexts) {
+            const t = clamp(ft.life / ft.maxLife, 0, 1);
+            const pos = ft.pos.sub(this.cam);
+            ctx.globalAlpha = t;
+            ctx.fillStyle = ft.color;
+            ctx.font = `${ft.size}px Segoe UI, Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(ft.text, pos.x, pos.y);
+            ctx.globalAlpha = 1;
+        }
+    }
+    
+    // --------------------------------------------------------------------
+    // HUD
+    // --------------------------------------------------------------------
+    updateUI() {
+        const p = this.player;
+        if (!p) return;
+        
+        // HP
+        const ratio = p.health / p.maxHealth;
+        document.getElementById('hpFill').style.width = `${ratio * 100}%`;
+        document.getElementById('hpFill').style.background = ratio > 0.3 ? '#5ad278' : '#dc3c3c';
+        document.getElementById('hpText').textContent = `HP ${Math.floor(p.health)}`;
+        
+        // Оружие
+        if (p.alive) {
+            const wstate = p.getWeaponState();
+            const data = WEAPONS[p.current];
+            const skin = p.currentSkin(p.current);
+            document.getElementById('weaponName').textContent = data.label;
+            document.getElementById('weaponSkin').textContent = `Скин: ${skin.name}`;
+            if (p.current !== 'knife') {
+                document.getElementById('weaponAmmo').textContent = `${wstate.ammoInMag} / ${wstate.reserve}`;
+                document.getElementById('reloadText').textContent = wstate.reloading > 0 ? 'Перезарядка...' : '';
+            } else {
+                document.getElementById('weaponAmmo').textContent = 'MELEE';
+                document.getElementById('reloadText').textContent = '';
+            }
+        } else {
+            document.getElementById('weaponName').textContent = 'ВЫ МЁРТВЫ';
+            document.getElementById('weaponSkin').textContent = '';
+            document.getElementById('weaponAmmo').textContent = '';
+            document.getElementById('reloadText').textContent = '';
+        }
+        
+        // Деньги
+        document.getElementById('money').textContent = `$ ${p.money}`;
+        document.getElementById('menuMoney').textContent = `Баланс: $${p.money}`;
+        document.getElementById('shopMoney').textContent = p.money;
+        
+        // Раунд и таймер
+        const timer = Math.max(0, Math.floor(this.roundTime));
+        const mins = Math.floor(timer / 60);
+        const secs = timer % 60;
+        document.getElementById('roundInfo').textContent = `Раунд ${this.roundNum}  ${mins}:${secs.toString().padStart(2, '0')}`;
+        
+        // Живые
+        const alive = this.players.filter(pl => pl.alive).length;
+        document.getElementById('aliveCount').textContent = `Живых: ${alive}`;
+        
+        // Фаза закупки
+        if (this.buyPhase) {
+            document.getElementById('buyPhase').textContent = `Фаза закупки: ${Math.floor(this.buyTime)}с (B — магазин)`;
+        } else {
+            document.getElementById('buyPhase').textContent = '';
+        }
+        
+        // K/D
+        document.getElementById('kd').textContent = `Убийства: ${p.kills}  Смерти: ${p.deaths}`;
+        
+        // Killfeed
+        const feed = document.getElementById('killFeed');
+        feed.innerHTML = this.killFeed.map(kf =>
+            `<div class="kill-entry">${kf.text}</div>`
+        ).join('');
+        
+        // Спектатор
+        const specInfo = document.getElementById('spectateInfo');
+        if (this.state === 'spectate') {
+            specInfo.classList.add('active');
+            specInfo.textContent = this.spectateTarget ?
+                `Наблюдение за: ${this.spectateTarget.name} (SPACE - смена цели)` :
+                'Наблюдение...';
+        } else {
+            specInfo.classList.remove('active');
+        }
+        
+        // Слоты оружия
+        const slots = document.getElementById('weaponSlots');
+        slots.innerHTML = WEAPON_LIST.map((key, i) => {
+            const owned = p.ownedWeapons.has(key);
+            const active = key === p.current;
+            const label = WEAPONS[key].label.split(' ').slice(1).join(' ').slice(0, 6) || WEAPONS[key].label.slice(0, 6);
+            return `<div class="slot ${active ? 'active' : ''} ${owned ? 'owned' : ''}">
+                <span class="key">${WEAPON_KEYS[i]}</span>${label}
+            </div>`;
+        }).join('');
+        
+        // Сообщение
+        if (this.messageTimer > 0) {
+            const el = document.getElementById('message');
+            el.textContent = this.message;
+            el.classList.add('show');
+        } else {
+            document.getElementById('message').classList.remove('show');
+        }
+    }
+    
+    drawHUD() {
+        // Всё уже обновлено через updateUI
+    }
+    
+    // --------------------------------------------------------------------
+    // МЕНЮ
+    // --------------------------------------------------------------------
+    startGame() {
+        document.getElementById('menu').classList.add('hidden');
+        this.newGame();
+    }
+    
+    pause() {
+        if (this.state === 'playing' || this.state === 'spectate') {
+            this.state = 'pause';
+            document.getElementById('pause').classList.add('active');
+        }
+    }
+    
+    resume() {
+        if (this.state === 'pause') {
+            this.state = 'playing';
+            document.getElementById('pause').classList.remove('active');
+        }
+    }
+    
+    goToMenu() {
+        this.state = 'menu';
+        document.getElementById('pause').classList.remove('active');
+        document.getElementById('menu').classList.remove('hidden');
+        document.getElementById('shop').classList.remove('active');
+        document.getElementById('roundEnd').classList.remove('active');
+    }
+    
+    quit() {
+        // Просто показываем меню
+        this.goToMenu();
+    }
+    
+    // --------------------------------------------------------------------
+    // МАГАЗИН
+    // --------------------------------------------------------------------
+    openShop() {
+        if (this.state === 'menu') {
+            this.shopReturnState = 'menu';
+        } else if (this.state === 'pause') {
+            this.shopReturnState = 'pause';
+            document.getElementById('pause').classList.remove('active');
+        } else {
+            this.shopReturnState = this.state;
+        }
+        this.state = 'shop';
+        document.getElementById('shop').classList.add('active');
+        this.shopMessage = '';
+        this.shopMessageTimer = 0;
+        this.renderShop();
+    }
+    
+    closeShop() {
+        this.state = this.shopReturnState;
+        document.getElementById('shop').classList.remove('active');
+        if (this.state === 'pause') document.getElementById('pause').classList.add('active');
+        if (this.state === 'menu') document.getElementById('menu').classList.remove('hidden');
+        this.updateUI();
+    }
+    
+    switchShopTab(tab) {
+        this.shopTab = tab;
+        document.querySelectorAll('.shop-tab').forEach(el => {
+            el.classList.toggle('active', el.dataset.tab === tab);
+        });
+        this.renderShop();
+    }
+    
+    renderShop() {
+        const content = document.getElementById('shopContent');
+        const p = this.player;
+        let html = '';
+        
+        if (this.shopTab === 'rifle' || this.shopTab === 'pistol') {
+            const slot = this.shopTab === 'pistol' ? 0 : 1;
+            const weapons = Object.entries(WEAPONS).filter(([k, v]) => v.slot === slot);
+            html += '<div style="margin-bottom:12px;font-weight:600;color:#888;">Оружие:</div>';
+            for (const [key, data] of weapons) {
+                const owned = p.ownedWeapons.has(key);
+                html += `<div class="shop-weapon-row">
+                    <span class="name">${data.label}</span>
+                    <span class="price">$${data.price}</span>
+                    ${owned ? '<span class="status">✓ Куплено</span>' : ''}
+                    <button class="buy-btn ${owned ? 'owned' : ''}" onclick="game.buyWeaponFromShop('${key}')">
+                        ${owned ? 'Куплено' : 'Купить'}
+                    </button>
+                </div>`;
+            }
+            html += '<div style="margin:16px 0 12px;font-weight:600;color:#888;">Скины:</div>';
+        }
+        
+        const skins = SKIN_TABLES[this.shopTab];
+        html += '<div class="shop-grid">';
+        for (const skin of skins) {
+            const category = this.shopTab;
+            const owned = p.ownedSkins[category].has(skin.id);
+            const equipped = p.equippedSkins[category] === skin.id;
+            const rarityColor = RARITY_COLORS[skin.rarity] || '#aaa';
+            
+            html += `<div class="shop-skin-card ${equipped ? 'equipped' : ''}">
+                <div class="preview">
+                    <div class="bar" style="background:${skin.primary};border:2px solid ${skin.secondary};"></div>
+                </div>
+                <div class="name">${skin.name}</div>
+                <div class="rarity" style="color:${rarityColor}">${RARITY_LABELS[skin.rarity] || 'Стандарт'}</div>
+                <button class="skin-btn ${equipped ? 'equipped' : ''} ${owned && !equipped ? 'owned' : ''}"
+                        onclick="game.buySkinFromShop('${category}', '${skin.id}')">
+                    ${equipped ? '✓ Экипировано' : owned ? 'Экипировать' : skin.price === 0 ? 'Бесплатно' : `Купить — $${skin.price}`}
+                </button>
+            </div>`;
+        }
+        html += '</div>';
+        
+        content.innerHTML = html;
+        
+        // Сообщение
+        const msgEl = document.getElementById('shopMessage');
+        if (this.shopMessageTimer > 0) {
+            msgEl.textContent = this.shopMessage;
+            msgEl.style.color = '#5ad278';
+        } else {
+            msgEl.textContent = '';
+        }
+        document.getElementById('shopMoney').textContent = p.money;
+    }
+    
+    buyWeaponFromShop(key) {
+        const result = this.player.buyWeapon(key);
+        this.shopMessage = result.msg;
+        this.shopMessageTimer = 1.5;
+        this.renderShop();
+        this.updateUI();
+    }
+    
+    buySkinFromShop(category, skinId) {
+        const result = this.player.buySkin(category, skinId);
+        this.shopMessage = result.msg;
+        this.shopMessageTimer = 1.5;
+        this.renderShop();
+        this.updateUI();
+    }
+    
+    // --------------------------------------------------------------------
+    // ИГРОВОЙ ЦИКЛ
+    // --------------------------------------------------------------------
+    loop() {
+        const dt = Math.min(1/60, 0.05);
+        this.update(dt);
+        this.draw();
+        requestAnimationFrame(() => this.loop());
+    }
+}
+
+// ========================================================================
+// ЗАПУСК
+// ========================================================================
+const game = new Game();
+</script>
+</body>
+</html>
